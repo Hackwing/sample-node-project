@@ -18,9 +18,8 @@ pipeline {
     stages {
 
         stage('Checkout') {
-            agent {
-                label any
-            }
+            agent any
+            
             options {
                 retry(2) // Prevents resume error after Jenkins restart
             }
