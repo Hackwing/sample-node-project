@@ -4,7 +4,7 @@ pipeline {
     }
 
     environment {
-        SONARQUBE_ENV = 'SonarQube'
+        SONARQUBE_ENV = 'Sonarqube1'
         IMAGE_NAME = 'sample-node-project'
     }
 
