@@ -19,7 +19,7 @@ pipeline {
 
         stage('Checkout') {
             agent {
-                label 'docker-agent'
+                label any
             }
             options {
                 retry(2) // Prevents resume error after Jenkins restart
