@@ -3,12 +3,8 @@ pipeline {
         label 'docker-agent'
     }
 
-    tools {
-        nodejs 'NodeJS' // ensure NodeJS is configured in Jenkins global tools
-    }
-
     environment {
-        SONARQUBE_ENV = 'SonarQube' // this must match the configured SonarQube installation name in Jenkins
+        SONARQUBE_ENV = 'SonarQube'
         IMAGE_NAME = 'sample-node-project'
     }
 
