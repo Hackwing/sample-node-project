@@ -1,15 +1,29 @@
 pipeline {
-    agent {
-        label 'docker-agent'
-    }
+    agent any
 
     environment {
-        SONARQUBE_ENV = 'Sonarqube1'
-        IMAGE_NAME = 'sample-node-project'
+        SONARQUBE_ENV = 'Sonarqube1' // Must match Jenkins' SonarQube config name
+    }
+
+    options {
+        // Retry entire pipeline if transient error occurs
+        retry(2)
+        // Keep only last 5 builds
+        buildDiscarder(logRotator(numToKeepStr: '5'))
+        // Fail fast on first stage failure
+        disableConcurrentBuilds()
+        timeout(time: 15, unit: 'MINUTES')
     }
 
     stages {
+
         stage('Checkout') {
+            agent {
+                label 'docker-agent'
+            }
+            options {
+                retry(2) // Prevents resume error after Jenkins restart
+            }
             steps {
                 checkout scm
             }
@@ -23,8 +37,8 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv("${env.SONARQUBE_ENV}") {
-                    sh 'npx sonar-scanner'
+                withSonarQubeEnv("${SONARQUBE_ENV}") {
+                    sh 'npm run sonar'
                 }
             }
         }
@@ -32,30 +46,40 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    dockerImage = docker.build("${IMAGE_NAME}:${env.BUILD_NUMBER}")
+                    def imageName = "sample-node-project:${env.BUILD_NUMBER}"
+                    sh "docker build -t ${imageName} ."
                 }
             }
         }
 
         stage('Security Scan (Trivy)') {
             steps {
-                sh "trivy image ${IMAGE_NAME}:${env.BUILD_NUMBER} || true"
+                sh '''
+                docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image sample-node-project:${BUILD_NUMBER}
+                '''
             }
         }
 
         stage('Deploy Locally') {
             steps {
-                sh "docker run -d -p 3000:3000 ${IMAGE_NAME}:${env.BUILD_NUMBER}"
+                sh 'docker run -d -p 3000:3000 sample-node-project:${BUILD_NUMBER}'
             }
         }
     }
 
     post {
-        failure {
-            echo 'Build failed!'
+        always {
+            echo "Cleaning up resources..."
+            sh 'docker system prune -f || true'
         }
         success {
-            echo 'Build succeeded!'
+            echo '✅ Build and deployment succeeded!'
+        }
+        failure {
+            echo '❌ Build failed!'
+        }
+        unstable {
+            echo '⚠️ Build is unstable.'
         }
     }
 }
